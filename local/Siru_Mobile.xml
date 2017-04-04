@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<config>
+    <modules>
+        <Siru_Mobile>
+            <active>true</active>
+            <codePool>local</codePool>
+
+            <depends>
+                <Mage_Payment />
+            </depends>
+        </Siru_Mobile>
+    </modules>
+</config>
