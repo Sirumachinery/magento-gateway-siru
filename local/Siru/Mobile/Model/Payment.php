@@ -104,7 +104,7 @@ class Siru_Mobile_Model_Payment extends Mage_Payment_Model_Method_Abstract
                 ->createPayment();
 
 //            return Mage::getUrl('siru_mobile/payment/redirect', array('_secure' => false));
-//            return $transaction['redirect'];
+            return $transaction['redirect'];
 
         } catch (\Siru\Exception\InvalidResponseException $e) {
             error_log('Siru Payment Gateway: Unable to contact payment API. Check credentials.');
