@@ -5,26 +5,33 @@
             <version>1.0.0.0</version>
         </siru_mobile>
     </modules>
-
+    <frontend>
+        <routers>
+            <mobile>
+                <use>standard</use>
+                <args>
+                    <module>Siru_Mobile</module>
+                    <frontName>sirumobile</frontName>
+                </args>
+            </mobile>
+        </routers>
+    </frontend>
     <global>
         <models>
             <siru_mobile>
                 <class>Siru_Mobile_Model</class>
             </siru_mobile>
         </models>
-
         <helpers>
             <siru_mobile>
                 <class>Siru_Mobile_Helper</class>
             </siru_mobile>
         </helpers>
-
         <blocks>
             <siru_mobile>
                 <class>Siru_Mobile_Block</class>
             </siru_mobile>
         </blocks>
-
         <resources>
             <siru_mobile_setup>
                 <setup>
@@ -33,7 +40,6 @@
             </siru_mobile_setup>
         </resources>
     </global>
-
     <default>
         <payment>
             <siru_mobile>
@@ -46,18 +52,6 @@
             </siru_mobile>
         </payment>
     </default>
-
-    <frontend>
-        <routers>
-            <siru_mobile>
-                <use>standard</use>
-                <args>
-                    <module>siru_mobile</module>
-                    <frontName>siru_mobile</frontName>
-                </args>
-            </siru_mobile>
-        </routers>
-    </frontend>
 </config>
 
 

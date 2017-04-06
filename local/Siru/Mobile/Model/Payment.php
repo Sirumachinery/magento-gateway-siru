@@ -38,15 +38,6 @@ class Siru_Mobile_Model_Payment extends Mage_Payment_Model_Method_Abstract
 
         $quote = Mage::getModel("sales/quote")->load($quoteId);
 
-        $order = Mage::getModel('sales/order')->load($quoteId);
-
-//        $order->setState(Mage_Sales_Model_Order::STATE_COMPLETE, true)->save();
-//        echo '<pre>';
-
-//        print_r($quote);
-//        exit;
-
-
         $customer = $quote->_data;
 
         $data = Mage::getStoreConfig('payment/siru_mobile');
@@ -55,7 +46,7 @@ class Siru_Mobile_Model_Payment extends Mage_Payment_Model_Method_Abstract
         $secret = $data['merchant_secret'];
         $purchaseCountry = $data['purchase_country'];
 
-        $signature = new \Siru\Signature(75, '19732400c951900ef5239f78f3d29b007678a75f');
+        $signature = new \Siru\Signature($merchantId, $secret);
 
         $api = new \Siru\API($signature);
 
@@ -70,12 +61,12 @@ class Siru_Mobile_Model_Payment extends Mage_Payment_Model_Method_Abstract
 
 
         $url = Mage::getUrl('checkout/onepage', array('_secure' => true));
-        $successUrl = Mage::getUrl('checkout/onepage/success', array('_secure' => true));
+
+        $successUrl =  Mage::getUrl('sirumobile/index/success', array('_secure' => false));
 
         try {
 
             $total = $quote->_data['base_grand_total'];
-            $total = number_format($total, 2);
 
             $taxClass = (int)$data['tax_class'];
 
@@ -90,20 +81,21 @@ class Siru_Mobile_Model_Payment extends Mage_Payment_Model_Method_Abstract
             $instantPay = $data['instant_payment'];
 
             $transaction = $api->getPaymentApi()
+                ->set('variant', 'variant2')
+                ->set('purchaseCountry', $purchaseCountry)
                 ->set('basePrice', '10.00')
                 ->set('redirectAfterSuccess', $successUrl)
                 ->set('redirectAfterFailure', $url)
                 ->set('redirectAfterCancel', $url)
-                ->set('taxClass', '3')
-                ->set('serviceGroup', '2')
-                ->set('instantPay', '1')
-//              ->set('customerNumber', '442079460916')
-                ->set('title', 'Concert ticket')
-                ->set('customerLocale', 'en_GB')
-                ->set('description', 'Magento ')
+                ->set('taxClass', $taxClass)
+                ->set('serviceGroup', $serviceGroup)
+                ->set('instantPay', $instantPay)
+                ->set('customerFirstName',$customer['customer_firstname'])
+                ->set('customerLastName', $customer['customer_lastname'])
+                ->set('customerEmail', $customer['customer_email'])
                 ->createPayment();
 
-//            return Mage::getUrl('siru_mobile/payment/redirect', array('_secure' => false));
+
             return $transaction['redirect'];
 
         } catch (\Siru\Exception\InvalidResponseException $e) {
@@ -121,9 +113,7 @@ class Siru_Mobile_Model_Payment extends Mage_Payment_Model_Method_Abstract
      */
     public function includes()
     {
-
         $code_path = Mage::getBaseDir('code');
-
 
         $path = $code_path . '/local/Siru/Mobile/vendor/autoload.php';
 
@@ -151,7 +141,7 @@ class Siru_Mobile_Model_Payment extends Mage_Payment_Model_Method_Abstract
             } else {
 
                 $limit = number_format($data['maximum_payment'], 2);
-                $total = number_format($quote->_data['base_grand_total'], 2);
+                $total = $quote->_data['base_grand_total'];
 
                 if (bccomp($limit, 0, 2) == 1 && bccomp($limit, $total, 2) == -1) {
 
@@ -174,6 +164,15 @@ class Siru_Mobile_Model_Payment extends Mage_Payment_Model_Method_Abstract
             $ip = Mage::helper('core/http')->getRemoteAddr();
 
 //            $cache = (array) get_transient('wc_siru_ip_check');
+
+//            if(isset($cache[$ip])) {
+//                if($cache[$ip] == false) {
+//                    unset($gateways['siru']);
+//                }
+//
+//                return $gateways;
+//            }
+
             $data = Mage::getStoreConfig('payment/siru_mobile');
 
             $merchantId = $data['merchant_id'];
@@ -185,7 +184,6 @@ class Siru_Mobile_Model_Payment extends Mage_Payment_Model_Method_Abstract
 
             // Use production endpoint if configured by admin
             $endPoint = $data['live_environment'];
-
 
             if (!$endPoint) {
                 $api->useStagingEndpoint();
