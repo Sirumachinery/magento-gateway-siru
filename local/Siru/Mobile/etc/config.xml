@@ -51,6 +51,27 @@
                 <payment_action>sale</payment_action>
             </siru_mobile>
         </payment>
+
+        <payment>
+            <siru_mobile>
+                <tax_class>2</tax_class>
+            </siru_mobile>
+        </payment>
+        <payment>
+            <siru_mobile>
+                <service_group>2</service_group>
+            </siru_mobile>
+        </payment>
+        <payment>
+            <siru_mobile>
+                <instant_payment>1</instant_payment>
+            </siru_mobile>
+        </payment>
+        <payment>
+            <siru_mobile>
+                <purchase_country>FI</purchase_country>
+            </siru_mobile>
+        </payment>
     </default>
 </config>
 

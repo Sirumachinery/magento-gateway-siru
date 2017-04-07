@@ -6,7 +6,7 @@
 class Siru_Mobile_IndexController extends Mage_Core_Controller_Front_Action
 {
     /**
-     *
+     * method successAction
      */
     public function successAction()
     {
@@ -23,6 +23,7 @@ class Siru_Mobile_IndexController extends Mage_Core_Controller_Front_Action
 
         $signature = new \Siru\Signature($merchantId, $secret);
 
+
         if(isset($_GET['siru_event']) == true) {
 
             if($signature->isNotificationAuthentic($_GET)) {
@@ -38,6 +39,10 @@ class Siru_Mobile_IndexController extends Mage_Core_Controller_Front_Action
                     $order->setData('state', Mage_Sales_Model_Order::STATE_COMPLETE);
                     $order->save();
 
+                    // Empty Cart
+                    Mage::getSingleton('checkout/cart')->truncate();
+                    Mage::getSingleton('checkout/cart')->save();
+
                     return $this->_redirect('checkout/onepage/success');
                 }
             }else{
@@ -49,18 +54,26 @@ class Siru_Mobile_IndexController extends Mage_Core_Controller_Front_Action
 
     }
 
-
+    /**
+     * method failureAction
+     * @return Mage_Core_Controller_Varien_Action
+     */
+    public function failureAction()
+    {
+        return $this->_redirect('checkout/onepage');
+    }
 
     /**
-     * method includes
+     * method cancelAction
+     * @return Mage_Core_Controller_Varien_Action
      */
-    public function includes()
+    public function cancelAction()
     {
-        $code_path = Mage::getBaseDir('code');
-
-        $path = $code_path . '/local/Siru/Mobile/vendor/autoload.php';
-
-        return require_once($path);
+        return $this->_redirect('checkout/onepage');
     }
+
+
+
+
 
 }

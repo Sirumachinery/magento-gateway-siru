@@ -13,6 +13,13 @@ class Siru_Mobile_Model_Payment extends Mage_Payment_Model_Method_Abstract
         $this->includes();
         $this->wc_siru_disable_on_order_total();
         $this->wc_siru_verify_ip();
+
+        if(Mage::getSingleton('checkout/session')->getLastRealOrderId()){
+            if ($lastQuoteId = Mage::getSingleton('checkout/session')->getLastQuoteId()){
+                $quote = Mage::getModel('sales/quote')->load($lastQuoteId);
+                $quote->setIsActive(true)->save();
+            }
+        }
     }
 
     /**
@@ -32,6 +39,7 @@ class Siru_Mobile_Model_Payment extends Mage_Payment_Model_Method_Abstract
      */
     public function getOrderPlaceRedirectUrl()
     {
+
 //        $paymentInfo = $this->getInfoInstance();
 
         $quoteId = Mage::getSingleton('checkout/session')->getQuoteId();
@@ -59,14 +67,13 @@ class Siru_Mobile_Model_Payment extends Mage_Payment_Model_Method_Abstract
             'purchaseCountry' => 'FI'
         ]);
 
-
-        $url = Mage::getUrl('checkout/onepage', array('_secure' => true));
-
         $successUrl =  Mage::getUrl('sirumobile/index/success', array('_secure' => false));
+        $failUrl =  Mage::getUrl('sirumobile/index/failure', array('_secure' => false));
+        $cancelUrl =  Mage::getUrl('sirumobile/index/failure', array('_secure' => false));
 
         try {
 
-            $total = $quote->_data['base_grand_total'];
+            $total = substr($quote->_data['base_grand_total'], 0, 5);
 
             $taxClass = (int)$data['tax_class'];
 
@@ -83,10 +90,10 @@ class Siru_Mobile_Model_Payment extends Mage_Payment_Model_Method_Abstract
             $transaction = $api->getPaymentApi()
                 ->set('variant', 'variant2')
                 ->set('purchaseCountry', $purchaseCountry)
-                ->set('basePrice', '10.00')
+                ->set('basePrice', '5.00')
                 ->set('redirectAfterSuccess', $successUrl)
-                ->set('redirectAfterFailure', $url)
-                ->set('redirectAfterCancel', $url)
+                ->set('redirectAfterFailure', $failUrl)
+                ->set('redirectAfterCancel', $cancelUrl)
                 ->set('taxClass', $taxClass)
                 ->set('serviceGroup', $serviceGroup)
                 ->set('instantPay', $instantPay)
@@ -141,7 +148,7 @@ class Siru_Mobile_Model_Payment extends Mage_Payment_Model_Method_Abstract
             } else {
 
                 $limit = number_format($data['maximum_payment'], 2);
-                $total = $quote->_data['base_grand_total'];
+                $total = substr($quote->_data['base_grand_total'], 0, 5);
 
                 if (bccomp($limit, 0, 2) == 1 && bccomp($limit, $total, 2) == -1) {
 
@@ -209,6 +216,8 @@ class Siru_Mobile_Model_Payment extends Mage_Payment_Model_Method_Abstract
 
         return;
     }
+
+
 
 
 }
