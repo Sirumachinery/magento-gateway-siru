@@ -1,12 +1,13 @@
 <?php
 
 /**
- * Class Siru_Mobile_IndexController
+ * Controller for Siru success/cancel/failure pages and Siru notifications.
  */
 class Siru_Mobile_IndexController extends Mage_Core_Controller_Front_Action
 {
+
     /**
-     * method successAction
+     * User is redirected here after successful payment.
      */
     public function successAction()
     {
