@@ -14,10 +14,9 @@ class Siru_Mobile_Model_Payment extends Mage_Payment_Model_Method_Abstract
      */
     public function __construct()
     {
-        $this->includes();
         $this->verifyAvailability();
 
-        if(Mage::getSingleton('checkout/session')->getLastRealOrderId()){
+        if(Mage::getSingleton('checkout/session')->getLastRealOrderId()) {
             if ($lastQuoteId = Mage::getSingleton('checkout/session')->getLastQuoteId()){
                 $quote = Mage::getModel('sales/quote')->load($lastQuoteId);
                 $quote->setIsActive(true)->save();
@@ -43,15 +42,17 @@ class Siru_Mobile_Model_Payment extends Mage_Payment_Model_Method_Abstract
     public function getOrderPlaceRedirectUrl()
     {
 
+        $logger = Mage::helper('siru_mobile/logger');
+
 //        $paymentInfo = $this->getInfoInstance();
 
         $quoteId = Mage::getSingleton('checkout/session')->getQuoteId();
-        self::log($quoteId);
+        $logger->log($quoteId);
 
         $quote = Mage::getModel("sales/quote")->load($quoteId);
 
         $customer = $quote->_data;
-        self::log($quote->_data);
+        $logger->log($quote->_data);
 
         $data = Mage::getStoreConfig('payment/siru_mobile');
 
@@ -74,7 +75,7 @@ class Siru_Mobile_Model_Payment extends Mage_Payment_Model_Method_Abstract
 
         try {
 
-            $api = $this->getApi();
+            $api = Mage::helper('siru_mobile/api')->getApi();
 
             $transaction = $api->getPaymentApi()
                 ->set('variant', 'variant2')
@@ -86,38 +87,31 @@ class Siru_Mobile_Model_Payment extends Mage_Payment_Model_Method_Abstract
                 ->set('taxClass', $taxClass)
                 ->set('serviceGroup', $serviceGroup)
                 ->set('instantPay', $instantPay)
+#                ->set('purchaseReference', $order->getId())
                 ->set('customerReference', $customer['customer_id'])
                 ->set('customerFirstName', $customer['customer_firstname'])
                 ->set('customerLastName', $customer['customer_lastname'])
                 ->set('customerEmail', $customer['customer_email'])
                 ->createPayment();
 
+#            $logger->log(sprintf('Created new pending payment for order %s. UUID %s.', $order->getId(), $transaction['uuid']), Zend_Log::INFO);
+
             return $transaction['redirect'];
 
-        // @TODO serious problme here. When exception occured, customer was shown payment complete page??!
+        // @TODO Even if creating payment fails, this will still create an order with status processing ??????
 
         } catch (\Siru\Exception\InvalidResponseException $e) {
             Mage::logException($e);
-            self::log('Unable to contact payment API. Check credentials.', Zend_Log::ERR);
+            $logger->log('Unable to contact payment API. Check credentials.', Zend_Log::ERR);
+            Mage::throwException($e->getMessage());
 
         } catch (\Siru\Exception\ApiException $e) {
             Mage::logException($e);
-            self::log('Failed to create transaction. ' . implode(" ", $e->getErrorStack()), Zend_Log::ERR);
+            $logger->log('Failed to create transaction. ' . implode(" ", $e->getErrorStack()), Zend_Log::ERR);
+            Mage::throwException($e->getMessage());
         }
 
         return;
-    }
-
-    /**
-     * Include autoloader for vendor libraries.
-     */
-    public function includes()
-    {
-        $code_path = Mage::getBaseDir('code');
-
-        $path = $code_path . '/local/Siru/Mobile/vendor/autoload.php';
-
-        return require_once($path);
     }
 
     /**
@@ -182,7 +176,7 @@ class Siru_Mobile_Model_Payment extends Mage_Payment_Model_Method_Abstract
                 return;
             }
 
-            $api = $this->getApi();
+            $api = Mage::helper('siru_mobile/api')->getApi();
 
             try {
 
@@ -193,50 +187,18 @@ class Siru_Mobile_Model_Payment extends Mage_Payment_Model_Method_Abstract
                 $mageCache->save(serialize($cache), self::CACHE_KEY_IP, array('siru_cache'), self::CACHE_TTL_IP);
 
                 if ($allowed == false) {
-                    self::log(sprintf('Hide Siru Mobile payment option for IP %s.', $ip), Zend_Log::DEBUG);
+                    $logger->log(sprintf('Hide Siru Mobile payment option for IP %s.', $ip), Zend_Log::DEBUG);
                     $this->_canUseCheckout = false;
                 }
 
             } catch (\Siru\Exception\ApiException $e) {
                 Mage::logException($e);
-                self::log(sprintf('Unable to verify if %s is allowed to use mobile payments. %s', $ip, $e->getMessage()), Zend_Log::ERR);
+                $logger->log(sprintf('Unable to verify if %s is allowed to use mobile payments. %s', $ip, $e->getMessage()), Zend_Log::ERR);
             }
 
         }
 
         return;
-    }
-
-    private function getSignature()
-    {
-        $data = Mage::getStoreConfig('payment/siru_mobile');
-
-        $merchantId = $data['merchant_id'];
-        $secret = $data['merchant_secret'];
-
-        $signature = new \Siru\Signature($merchantId, $secret);
-
-        return $signature;
-    }
-
-    private function getApi()
-    {
-        $signature = $this->getSignature();
-        $api = new \Siru\API($signature);
-
-        // Use production endpoint if configured by admin
-        $endPoint = $data['live_environment'];
-
-        if (!$endPoint) {
-            $api->useStagingEndpoint();
-        }
-
-        return $api;
-    }
-
-    public static function log($msg, $level = null)
-    {
-        Mage::log($msg, $level, 'siru_payment.log');
     }
 
 }

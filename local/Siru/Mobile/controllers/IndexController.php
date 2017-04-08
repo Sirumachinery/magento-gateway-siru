@@ -10,21 +10,9 @@ class Siru_Mobile_IndexController extends Mage_Core_Controller_Front_Action
      */
     public function successAction()
     {
-        $code_path = Mage::getBaseDir('code');
-
-        $path = $code_path . '/local/Siru/Mobile/vendor/autoload.php';
-
-        require_once($path);
-
-        $data = Mage::getStoreConfig('payment/siru_mobile');
-
-        $merchantId = $data['merchant_id'];
-        $secret = $data['merchant_secret'];
-
-        $signature = new \Siru\Signature($merchantId, $secret);
-
-
         if(isset($_GET['siru_event']) == true) {
+
+            $signature = Mage::helper('siru_mobile/api')->getSignature();
 
             if($signature->isNotificationAuthentic($_GET)) {
 
@@ -45,7 +33,7 @@ class Siru_Mobile_IndexController extends Mage_Core_Controller_Front_Action
 
                     return $this->_redirect('checkout/onepage/success');
                 }
-            }else{
+            } else {
                 return $this->_redirect('checkout/onepage');
             }
         }
@@ -72,8 +60,8 @@ class Siru_Mobile_IndexController extends Mage_Core_Controller_Front_Action
         return $this->_redirect('checkout/onepage');
     }
 
-
-
-
+    public function callbackAction()
+    {
+    }
 
 }
