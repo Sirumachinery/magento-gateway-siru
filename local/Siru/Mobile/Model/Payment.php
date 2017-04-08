@@ -5,14 +5,17 @@
  */
 class Siru_Mobile_Model_Payment extends Mage_Payment_Model_Method_Abstract
 {
+
+    const CACHE_KEY_IP = 'siru_ip';
+    const CACHE_TTL_IP = 86400;
+
     /**
      * Siru_Mobile_Model_Payment constructor.
      */
     public function __construct()
     {
         $this->includes();
-        $this->wc_siru_disable_on_order_total();
-        $this->wc_siru_verify_ip();
+        $this->verifyAvailability();
 
         if(Mage::getSingleton('checkout/session')->getLastRealOrderId()){
             if ($lastQuoteId = Mage::getSingleton('checkout/session')->getLastQuoteId()){
@@ -43,80 +46,70 @@ class Siru_Mobile_Model_Payment extends Mage_Payment_Model_Method_Abstract
 //        $paymentInfo = $this->getInfoInstance();
 
         $quoteId = Mage::getSingleton('checkout/session')->getQuoteId();
+        self::log($quoteId);
 
         $quote = Mage::getModel("sales/quote")->load($quoteId);
 
         $customer = $quote->_data;
+        self::log($quote->_data);
 
         $data = Mage::getStoreConfig('payment/siru_mobile');
-
-        $merchantId = $data['merchant_id'];
-        $secret = $data['merchant_secret'];
-        $purchaseCountry = $data['purchase_country'];
-
-        $signature = new \Siru\Signature($merchantId, $secret);
-
-        $api = new \Siru\API($signature);
-
-        // Select sandbox environment (default)
-        $api->useStagingEndpoint();
-
-        // You can set default values for all payment requests (not required)
-        $api->setDefaults([
-            'variant' => 'variant2',
-            'purchaseCountry' => 'FI'
-        ]);
 
         $successUrl =  Mage::getUrl('sirumobile/index/success', array('_secure' => false));
         $failUrl =  Mage::getUrl('sirumobile/index/failure', array('_secure' => false));
         $cancelUrl =  Mage::getUrl('sirumobile/index/failure', array('_secure' => false));
 
+        // Siru variant2 requires price w/o VAT
+        // To avoid decimal errors, deduct VAT from total instead of using $order->get_subtotal()
+        $total = substr($quote->_data['base_grand_total'], 0, 5);
+        $taxClass = (int)$data['tax_class'];
+        $taxPercentages = array(1 => 0.1, 2 => 0.14, 3 => 0.24);
+        if (isset($taxPercentages[$taxClass]) == true) {
+            $total = bcdiv($total, $taxPercentages[$taxClass] + 1, 2);
+        }
+
+        $purchaseCountry = $data['purchase_country'];
+        $serviceGroup = $data['service_group'];
+        $instantPay = $data['instant_payment'];
+
         try {
 
-            $total = substr($quote->_data['base_grand_total'], 0, 5);
-
-            $taxClass = (int)$data['tax_class'];
-
-            // Siru variant2 requires price w/o VAT
-            // To avoid decimal errors, deduct VAT from total instead of using $order->get_subtotal()
-            $taxPercentages = array(1 => 0.1, 2 => 0.14, 3 => 0.24);
-            if (isset($taxPercentages[$taxClass]) == true) {
-                $total = bcdiv($total, $taxPercentages[$taxClass] + 1, 2);
-            }
-
-            $serviceGroup = $data['service_group'];
-            $instantPay = $data['instant_payment'];
+            $api = $this->getApi();
 
             $transaction = $api->getPaymentApi()
                 ->set('variant', 'variant2')
                 ->set('purchaseCountry', $purchaseCountry)
-                ->set('basePrice', '5.00')
+                ->set('basePrice', $total)
                 ->set('redirectAfterSuccess', $successUrl)
                 ->set('redirectAfterFailure', $failUrl)
                 ->set('redirectAfterCancel', $cancelUrl)
                 ->set('taxClass', $taxClass)
                 ->set('serviceGroup', $serviceGroup)
                 ->set('instantPay', $instantPay)
-                ->set('customerFirstName',$customer['customer_firstname'])
+                ->set('customerReference', $customer['customer_id'])
+                ->set('customerFirstName', $customer['customer_firstname'])
                 ->set('customerLastName', $customer['customer_lastname'])
                 ->set('customerEmail', $customer['customer_email'])
                 ->createPayment();
 
-
             return $transaction['redirect'];
 
+        // @TODO serious problme here. When exception occured, customer was shown payment complete page??!
+
         } catch (\Siru\Exception\InvalidResponseException $e) {
-            error_log('Siru Payment Gateway: Unable to contact payment API. Check credentials.');
+            Mage::logException($e);
+            self::log('Unable to contact payment API. Check credentials.', Zend_Log::ERR);
 
         } catch (\Siru\Exception\ApiException $e) {
-            error_log('Siru Payment Gateway: Failed to create transaction. ' . implode(" ", $e->getErrorStack()));
+            Mage::logException($e);
+            self::log('Failed to create transaction. ' . implode(" ", $e->getErrorStack()), Zend_Log::ERR);
         }
 
         return;
     }
 
     /**
-     *
+     * Include autoloader for vendor libraries.
      */
     public function includes()
     {
@@ -128,9 +121,9 @@ class Siru_Mobile_Model_Payment extends Mage_Payment_Model_Method_Abstract
     }
 
     /**
-     * Removes siru payment gateway option if maximum payment allowed is set and cart total exceeds it.
+     * Run various checks to see if Siru mobile payments are available for this purchase.
      */
-    private function wc_siru_disable_on_order_total()
+    private function verifyAvailability()
     {
 
         $quoteId = Mage::getSingleton('checkout/session')->getQuoteId();
@@ -138,78 +131,75 @@ class Siru_Mobile_Model_Payment extends Mage_Payment_Model_Method_Abstract
 
         if ($this->_canUseCheckout == true) {
 
+            // Make sure payment gateway is configured
             $data = Mage::getStoreConfig('payment/siru_mobile');
             $merchantId = $data['merchant_id'];
+            $secret = $data['merchant_secret'];
 
-            if (empty($merchantId) == true) {
-
+            if (empty($merchantId) == true || empty($secret) == true) {
                 $this->_canUseCheckout = false;
-
-            } else {
-
-                $limit = number_format($data['maximum_payment'], 2);
-                $total = substr($quote->_data['base_grand_total'], 0, 5);
-
-                if (bccomp($limit, 0, 2) == 1 && bccomp($limit, $total, 2) == -1) {
-
-                    $this->_canUseCheckout = false;
-                }
-
+                return;
             }
+
+            // Make sure cart total does not exceed set maximum payment amount.
+            $limit = number_format($data['maximum_payment'], 2);
+            $total = substr($quote->_data['base_grand_total'], 0, 5);
+
+            if (bccomp($limit, 0, 2) == 1 && bccomp($limit, $total, 2) == -1) {
+                $this->_canUseCheckout = false;
+                return;
+            }
+
+            // Make sure user is using mobile internet connection.
+            $this->verifyMobileInternetConnection();
 
         }
 
-        return;
     }
 
     /**
      * Checks if users IP-address is allowed to make mobile payments. If not, remove Siru from payment options.
      */
-    private function wc_siru_verify_ip()
+    private function verifyMobileInternetConnection()
     {
         if ($this->_canUseCheckout == true) {
             $ip = Mage::helper('core/http')->getRemoteAddr();
 
-//            $cache = (array) get_transient('wc_siru_ip_check');
+            $mageCache = Mage::app()->getCache();
+            $cache = $mageCache->load(self::CACHE_KEY_IP);
 
-//            if(isset($cache[$ip])) {
-//                if($cache[$ip] == false) {
-//                    unset($gateways['siru']);
-//                }
-//
-//                return $gateways;
-//            }
-
-            $data = Mage::getStoreConfig('payment/siru_mobile');
-
-            $merchantId = $data['merchant_id'];
-            $secret = $data['merchant_secret'];
-
-            $signature = new \Siru\Signature($merchantId, $secret);
-
-            $api = new \Siru\API($signature);
-
-            // Use production endpoint if configured by admin
-            $endPoint = $data['live_environment'];
-
-            if (!$endPoint) {
-                $api->useStagingEndpoint();
+            if($cache != false) {
+                $cache = (array) unserialize($cache);
+            } else {
+                $cache = array();
             }
+
+            if(isset($cache[$ip])) {
+                if($cache[$ip] == false) {
+                    $this->_canUseCheckout = false;
+                }
+
+                return;
+            }
+
+            $api = $this->getApi();
 
             try {
 
                 $allowed = $api->getFeaturePhoneApi()->isFeaturePhoneIP($ip);
 
-                // Cache result for one houre
-//            $cache[$ip] = $allowed;
-//            set_transient('wc_siru_ip_check', $cache, 3600);
+                // Cache result
+                $cache[$ip] = $allowed;
+                $mageCache->save(serialize($cache), self::CACHE_KEY_IP, array('siru_cache'), self::CACHE_TTL_IP);
 
                 if ($allowed == false) {
+                    self::log(sprintf('Hide Siru Mobile payment option for IP %s.', $ip), Zend_Log::DEBUG);
                     $this->_canUseCheckout = false;
                 }
 
             } catch (\Siru\Exception\ApiException $e) {
-                error_log(sprintf('Siru Payment Gateway: Unable to verify if %s is allowed to use mobile payments. %s', $ip, $e->getMessage()));
+                Mage::logException($e);
+                self::log(sprintf('Unable to verify if %s is allowed to use mobile payments. %s', $ip, $e->getMessage()), Zend_Log::ERR);
             }
 
         }
@@ -217,7 +207,36 @@ class Siru_Mobile_Model_Payment extends Mage_Payment_Model_Method_Abstract
         return;
     }
 
+    private function getSignature()
+    {
+        $data = Mage::getStoreConfig('payment/siru_mobile');
 
+        $merchantId = $data['merchant_id'];
+        $secret = $data['merchant_secret'];
 
+        $signature = new \Siru\Signature($merchantId, $secret);
+
+        return $signature;
+    }
+
+    private function getApi()
+    {
+        $signature = $this->getSignature();
+        $api = new \Siru\API($signature);
+
+        // Use production endpoint if configured by admin
+        $endPoint = $data['live_environment'];
+
+        if (!$endPoint) {
+            $api->useStagingEndpoint();
+        }
+
+        return $api;
+    }
+
+    public static function log($msg, $level = null)
+    {
+        Mage::log($msg, $level, 'siru_payment.log');
+    }
 
 }
