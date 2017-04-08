@@ -23,10 +23,10 @@ class Siru_Mobile_Helper_Data extends Mage_Core_Helper_Abstract {
     public function calculateBasePrice($totalDue, $taxClass)
     {
         if (isset($this->taxPercentages[$taxClass]) == true) {
-            $total = bcdiv($total, $this->taxPercentages[$taxClass] + 1, 2);
+            $totalDue = bcdiv($totalDue, $this->taxPercentages[$taxClass] + 1, 2);
         }
 
-        return $total;
+        return $totalDue;
     }
 
 }

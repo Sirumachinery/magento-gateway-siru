@@ -17,6 +17,11 @@ class Siru_Mobile_Helper_Logger extends Mage_Core_Helper_Abstract {
         $this->log($msg, Zend_Log::INFO);
     }
 
+    public function warning($msg)
+    {
+        $this->log($msg, Zend_Log::WARN);
+    }
+
     public function error($msg)
     {
         $this->log($msg, Zend_Log::ERR);

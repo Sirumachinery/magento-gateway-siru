@@ -5,9 +5,12 @@
  */
 class Siru_Mobile_PaymentController extends Mage_Core_Controller_Front_Action
 {
+
     /**
      * User is redirected here after he clicks "Place order" in checkout page.
      * @see  Siru_Mobile_Model_Payment::getOrderPlaceRedirectUrl()
+     * @todo store Siru UUID to order
+     * @todo Show more graceful error message if API call fails, order is not found or order value due is zero
      */
     public function createAction()
     {
@@ -28,9 +31,8 @@ class Siru_Mobile_PaymentController extends Mage_Core_Controller_Front_Action
 
         $data = Mage::getStoreConfig('payment/siru_mobile');
 
-        $successUrl =  Mage::getUrl('sirumobile/index/success', array('_secure' => false));
-        $failUrl =  Mage::getUrl('sirumobile/index/failure', array('_secure' => false));
-        $cancelUrl =  Mage::getUrl('sirumobile/index/failure', array('_secure' => false));
+        $redirectUrl =  Mage::getUrl('sirumobile/index/response', array('_secure' => false));
+        $notifyUrl = Mage::getUrl('sirumobile/index/callback', array('_secure' => false));
         $taxClass = (int)$data['tax_class'];
         $purchaseCountry = $data['purchase_country'];
         $serviceGroup = $data['service_group'];
@@ -47,11 +49,15 @@ class Siru_Mobile_PaymentController extends Mage_Core_Controller_Front_Action
 
             $transaction = $api->getPaymentApi()
                 ->set('variant', 'variant2')
+#                ->set('merchantId', '22222')
                 ->set('purchaseCountry', $purchaseCountry)
                 ->set('basePrice', $basePrice)
-                ->set('redirectAfterSuccess', $successUrl)
-                ->set('redirectAfterFailure', $failUrl)
-                ->set('redirectAfterCancel', $cancelUrl)
+                ->set('redirectAfterSuccess', $redirectUrl)
+                ->set('redirectAfterFailure', $redirectUrl)
+                ->set('redirectAfterCancel', $redirectUrl)
+#                ->set('notifyAfterSuccess', $notifyUrl)
+#                ->set('notifyAfterFailure', $notifyUrl)
+#                ->set('notifyAfterCancel', $notifyUrl)
                 ->set('taxClass', $taxClass)
                 ->set('serviceGroup', $serviceGroup)
                 ->set('instantPay', $instantPay)
@@ -64,21 +70,41 @@ class Siru_Mobile_PaymentController extends Mage_Core_Controller_Front_Action
 
             $logger->info(sprintf('Created new pending payment for order %s. UUID %s.', $order->getId(), $transaction['uuid']));
 
+            $order->setState(
+                Mage_Sales_Model_Order::STATE_PENDING_PAYMENT,
+                Mage_Sales_Model_Order::STATE_PENDING_PAYMENT,
+                'Redirect user to Siru payment page.'
+            );
+            $order->save();
+
             return $this->_redirectUrl($transaction['redirect']);
 
-        // @TODO Even if creating payment fails, this will still create an order with status processing ??????
-
         } catch (\Siru\Exception\InvalidResponseException $e) {
-            Mage::logException($e);
             $logger->error('Unable to contact payment API. Check credentials.');
-            Mage::throwException($e->getMessage());
+
+            $this->handleException($e, $order);
 
         } catch (\Siru\Exception\ApiException $e) {
-            Mage::logException($e);
             $logger->error('Failed to create transaction. ' . implode(" ", $e->getErrorStack()));
-            Mage::throwException($e->getMessage());
+
+            $this->handleException($e, $order);
         }
 
+    }
+
+    /**
+     * Logs exception and cancels order.
+     * @param  Exception              $e
+     * @param  Mage_Sales_Model_Order $order
+     */
+    private function handleException(Exception $e, Mage_Sales_Model_Order $order)
+    {
+        Mage::logException($e);
+
+        $order->cancel();
+        $order->addStatusHistoryComment('Failed to create payment.', Mage_Sales_Model_Order::STATE_CANCELED);
+        $order->save();
+        throw $e;
     }
 
 }
