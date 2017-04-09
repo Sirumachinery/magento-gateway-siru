@@ -18,7 +18,6 @@ class Siru_Mobile_PaymentController extends Mage_Core_Controller_Front_Action
         $logger = Mage::helper('siru_mobile/logger');
 
         $order_id = Mage::getSingleton('checkout/session')->getLastRealOrderId();
-        $logger->debug('Siru payment controller: create payment for order id ' . $order_id);
 
         $order = Mage::getModel('sales/order');
         $order->loadByIncrementId($order_id);
@@ -26,6 +25,7 @@ class Siru_Mobile_PaymentController extends Mage_Core_Controller_Front_Action
             $logger->error(sprintf('Order %s was not found for processing.', $order_id));
             Mage::throwException('No order for processing found');
         }
+        $logger->debug('Create payment for order id ' . $order_id);
 
         $customer = $order->getBillingAddress();
 
@@ -39,7 +39,7 @@ class Siru_Mobile_PaymentController extends Mage_Core_Controller_Front_Action
         $instantPay = $data['instant_payment'];
 
         $basePrice = Mage::helper('siru_mobile/data')->calculateBasePrice(
-            $order->getTotalDue(),
+            $order->getGrandTotal(),
             $taxClass
         );
 
@@ -55,9 +55,9 @@ class Siru_Mobile_PaymentController extends Mage_Core_Controller_Front_Action
                 ->set('redirectAfterSuccess', $redirectUrl)
                 ->set('redirectAfterFailure', $redirectUrl)
                 ->set('redirectAfterCancel', $redirectUrl)
-#                ->set('notifyAfterSuccess', $notifyUrl)
-#                ->set('notifyAfterFailure', $notifyUrl)
-#                ->set('notifyAfterCancel', $notifyUrl)
+                ->set('notifyAfterSuccess', $notifyUrl)
+                ->set('notifyAfterFailure', $notifyUrl)
+                ->set('notifyAfterCancel', $notifyUrl)
                 ->set('taxClass', $taxClass)
                 ->set('serviceGroup', $serviceGroup)
                 ->set('instantPay', $instantPay)
@@ -100,6 +100,8 @@ class Siru_Mobile_PaymentController extends Mage_Core_Controller_Front_Action
     private function handleException(Exception $e, Mage_Sales_Model_Order $order)
     {
         Mage::logException($e);
+
+        //Mage::getSingleton('core/session')->addError("There was a problem with the payment gateway. Please try again");
 
         $order->cancel();
         $order->addStatusHistoryComment('Failed to create payment.', Mage_Sales_Model_Order::STATE_CANCELED);

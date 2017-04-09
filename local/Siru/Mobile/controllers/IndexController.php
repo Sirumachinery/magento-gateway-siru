@@ -18,8 +18,15 @@ class Siru_Mobile_IndexController extends Mage_Core_Controller_Front_Action
             $this->_redirect("checkout/onepage");
         }
 
-        $orderId = Mage::getSingleton('checkout/session')->getLastRealOrderId();
-        $order = Mage::getModel('sales/order')->loadByIncrementId($orderId);
+        // Use order id from purchase reference instead of session.
+        // Otherwise user could create new order with more products.
+        $incrementId = $_GET['siru_purchaseReference'];
+        $order = Mage::getModel('sales/order')->load($incrementId);
+
+        if($order->getId() == false) {
+            Mage::helper('siru_mobile/logger')->error('responseAction: Order increment_id ' . $incrementId . ' from purchaseReference was not found');
+            return $this->_redirect("/");
+        }
 
         switch($event) {
                 case 'success':
@@ -57,7 +64,13 @@ class Siru_Mobile_IndexController extends Mage_Core_Controller_Front_Action
             }
 
             $orderId = $entityBodyAsJson['siru_purchaseReference'];
-            $order = Mage::getModel('sales/order')->loadByIncrementId($orderId);
+            $order = Mage::getModel('sales/order')->load($orderId);
+
+            if($order->getId() == false) {
+                Mage::helper('siru_mobile/logger')->error('callbackAction: Order increment_id ' . $incrementId . ' from purchaseReference was not found');
+                $this->getResponse()->setHeader('HTTP/1.0','404',true);
+                return;
+            }
 
             switch($event) {
                 case 'success':
@@ -101,6 +114,8 @@ class Siru_Mobile_IndexController extends Mage_Core_Controller_Front_Action
 
     private function completePayment(Mage_Sales_Model_Order $order)
     {
+        Mage::helper('siru_mobile/logger')->debug('Order ' . $order->getId() . ' payment was completed.');
+
         $order->addStatusToHistory(Mage_Sales_Model_Order::STATE_COMPLETE);
 
         $order->setData('state', Mage_Sales_Model_Order::STATE_COMPLETE);
@@ -109,15 +124,24 @@ class Siru_Mobile_IndexController extends Mage_Core_Controller_Front_Action
         // Empty Cart
         Mage::getSingleton('checkout/cart')->truncate();
         Mage::getSingleton('checkout/cart')->save();
+
+        // De-activate quote from which order was created
+        // Not needed as quote is automatically de-activated when order is created
+#        $quoteId = $order->getQuoteId();
+#        $quote = Mage::getModel('sales/quote')->load($quoteId);
+#        $quote->setIsActive(false)->save();
     }
 
     /**
      * Cancels order and stores optional status message about event.
      * @param  Mage_Sales_Model_Order $order
      * @param  string|null            $message
+     * @todo   re-activate quote
      */
     private function cancelOrder(Mage_Sales_Model_Order $order, $message = null)
     {
+        Mage::helper('siru_mobile/logger')->debug('Order ' . $order->getId() . ' payment was canceled.');
+
         $order->cancel();
         if($message) {
             $order->addStatusHistoryComment($message, Mage_Sales_Model_Order::STATE_CANCELED);

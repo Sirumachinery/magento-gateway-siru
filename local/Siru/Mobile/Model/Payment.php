@@ -30,13 +30,6 @@ class Siru_Mobile_Model_Payment extends Mage_Payment_Model_Method_Abstract
     public function __construct()
     {
         $this->verifyAvailability();
-
-        if(Mage::getSingleton('checkout/session')->getLastRealOrderId()) {
-            if ($lastQuoteId = Mage::getSingleton('checkout/session')->getLastQuoteId()){
-                $quote = Mage::getModel('sales/quote')->load($lastQuoteId);
-                $quote->setIsActive(true)->save();
-            }
-        }
     }
 
     /**
@@ -53,10 +46,6 @@ class Siru_Mobile_Model_Payment extends Mage_Payment_Model_Method_Abstract
      */
     private function verifyAvailability()
     {
-
-        $quoteId = Mage::getSingleton('checkout/session')->getQuoteId();
-        $quote = Mage::getModel("sales/quote")->load($quoteId);
-
         if ($this->_canUseCheckout == true) {
 
             // Make sure payment gateway is configured
@@ -70,8 +59,11 @@ class Siru_Mobile_Model_Payment extends Mage_Payment_Model_Method_Abstract
             }
 
             // Make sure cart total does not exceed set maximum payment amount.
+            $quoteId = Mage::getSingleton('checkout/session')->getQuoteId();
+            $quote = Mage::getModel("sales/quote")->load($quoteId);
+
             $limit = number_format($data['maximum_payment'], 2);
-            $total = substr($quote->_data['base_grand_total'], 0, 5);
+            $total = $quote->getBaseGrandTotal();
 
             if (bccomp($limit, 0, 2) == 1 && bccomp($limit, $total, 2) == -1) {
                 $this->_canUseCheckout = false;
@@ -82,7 +74,11 @@ class Siru_Mobile_Model_Payment extends Mage_Payment_Model_Method_Abstract
             $this->verifyMobileInternetConnection();
 
         }
+    }
 
+    public function canUseForCountry($country)
+    {
+        return ($country === 'FI');
     }
 
     /**
@@ -102,7 +98,10 @@ class Siru_Mobile_Model_Payment extends Mage_Payment_Model_Method_Abstract
                 $cache = array();
             }
 
+            $logger = Mage::helper('siru_mobile/logger');
+
             if(isset($cache[$ip])) {
+                $logger->debug(sprintf('IP-address %s was found in cache.', $ip));
                 if($cache[$ip] == false) {
                     $this->_canUseCheckout = false;
                 }
