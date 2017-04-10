@@ -106,6 +106,11 @@ class Siru_Mobile_PaymentController extends Mage_Core_Controller_Front_Action
         $order->cancel();
         $order->addStatusHistoryComment('Failed to create payment.', Mage_Sales_Model_Order::STATE_CANCELED);
         $order->save();
+
+        $quoteId = $order->getQuoteId();
+        $quote = Mage::getModel('sales/quote')->load($quoteId);
+        $quote->setIsActive(true)->save();
+
         throw $e;
     }
 

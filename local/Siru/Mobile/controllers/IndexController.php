@@ -10,6 +10,7 @@ class Siru_Mobile_IndexController extends Mage_Core_Controller_Front_Action
      * User is redirected here after successful payment.
      * @todo check if order status allows status to be changed
      * @todo compare purchase reference to order so that we complete correct order
+     * @todo  translate error messages
      */
     public function responseAction()
     {
@@ -35,14 +36,16 @@ class Siru_Mobile_IndexController extends Mage_Core_Controller_Front_Action
 
                 case 'cancel':
                     $this->cancelOrder($order, 'User canceled payment.');
-                    return $this->_redirect('checkout/onepage');
+                    Mage::getSingleton('core/session')->addNotice('Payment was canceled.');
+                    break;
 
                 case 'failure':
                     $this->cancelOrder($order, 'Payment failed.');
-                    return $this->_redirect('checkout/onepage');
+                    Mage::getSingleton('core/session')->addError('Payment was unsuccessful.');
+                    break;
         }
 
-        return $this->_redirect("checkout/onepage");
+        return $this->_redirect("checkout/cart");
     }
 
     /**
@@ -124,12 +127,6 @@ class Siru_Mobile_IndexController extends Mage_Core_Controller_Front_Action
         // Empty Cart
         Mage::getSingleton('checkout/cart')->truncate();
         Mage::getSingleton('checkout/cart')->save();
-
-        // De-activate quote from which order was created
-        // Not needed as quote is automatically de-activated when order is created
-#        $quoteId = $order->getQuoteId();
-#        $quote = Mage::getModel('sales/quote')->load($quoteId);
-#        $quote->setIsActive(false)->save();
     }
 
     /**
@@ -147,6 +144,11 @@ class Siru_Mobile_IndexController extends Mage_Core_Controller_Front_Action
             $order->addStatusHistoryComment($message, Mage_Sales_Model_Order::STATE_CANCELED);
         }
         $order->save();
+
+        // Re-activate quote from which order was created
+        $quoteId = $order->getQuoteId();
+        $quote = Mage::getModel('sales/quote')->load($quoteId);
+        $quote->setIsActive(true)->save();
     }
 
 }
