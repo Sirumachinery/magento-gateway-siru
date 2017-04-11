@@ -1,0 +1,120 @@
+<?xml version="1.0"?>
+<config>
+    <modules>
+        <Siru_Mobile>
+            <version>1.0.0.0</version>
+        </Siru_Mobile>
+    </modules>
+    <frontend>
+        <routers>
+            <mobile>
+                <use>standard</use>
+                <args>
+                    <module>Siru_Mobile</module>
+                    <frontName>sirumobile</frontName>
+                </args>
+            </mobile>
+        </routers>
+    </frontend>
+    <global>
+        <models>
+            <siru_mobile>
+                <class>Siru_Mobile_Model</class>
+            </siru_mobile>
+        </models>
+        <helpers>
+            <siru_mobile>
+                <class>Siru_Mobile_Helper</class>
+            </siru_mobile>
+        </helpers>
+        <blocks>
+            <siru_mobile>
+                <class>Siru_Mobile_Block</class>
+            </siru_mobile>
+        </blocks>
+        <resources>
+            <siru_mobile_setup>
+                <setup>
+                    <module>Siru_Mobile</module>
+                </setup>
+            </siru_mobile_setup>
+        </resources>
+    </global>
+    <default>
+        <payment>
+            <siru_mobile>
+                <active>1</active>
+                <model>siru_mobile/Payment</model>
+                <order_status>processing</order_status>
+                <title>Siru Mobile</title>
+                <allowspecific>0</allowspecific>
+                <payment_action>sale</payment_action>
+            </siru_mobile>
+        </payment>
+
+        <payment>
+            <siru_mobile>
+                <tax_class>3</tax_class>
+            </siru_mobile>
+        </payment>
+        <payment>
+            <siru_mobile>
+                <service_group>2</service_group>
+            </siru_mobile>
+        </payment>
+        <payment>
+            <siru_mobile>
+                <instant_payment>1</instant_payment>
+            </siru_mobile>
+        </payment>
+        <payment>
+            <siru_mobile>
+                <purchase_country>FI</purchase_country>
+            </siru_mobile>
+        </payment>
+    </default>
+</config>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
