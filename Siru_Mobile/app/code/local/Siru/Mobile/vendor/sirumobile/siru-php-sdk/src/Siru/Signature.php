@@ -108,8 +108,10 @@ class Signature {
     {
         $newFields = [];
         foreach($signedFields as $field) {
-            if(isset($fields[$field])) {
+            if(array_key_exists($field, $fields) === true) {
                 $newFields[$field] = $fields[$field];
+            } else {
+                $newFields[$field] = null;
             }
         }
         return $newFields;

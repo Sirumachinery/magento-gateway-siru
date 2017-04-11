@@ -9,6 +9,9 @@ class Siru_Mobile_Model_Payment extends Mage_Payment_Model_Method_Abstract
     const CACHE_KEY_IP = 'siru_ip';
     const CACHE_TTL_IP = 86400;
 
+    private static $availableCountries = array('FI');
+    private static $availableCurrencies = array('EUR');
+
     /**
      * @var string
      */
@@ -58,14 +61,27 @@ class Siru_Mobile_Model_Payment extends Mage_Payment_Model_Method_Abstract
                 return;
             }
 
+            $quote = Mage::getModel('checkout/cart')->getQuote();
+
+            // Make sure quote is using a supported currency
+            if(in_array($quote->getQuoteCurrencyCode(), self::$availableCurrencies) == false) {
+                Mage::helper('siru_mobile/logger')->info('Siru payment method not available for currency "' . $quote->getQuoteCurrencyCode() . '"');
+                $this->_canUseCheckout = false;
+                return;
+            }
+
             // Make sure cart total does not exceed set maximum payment amount.
-            $quoteId = Mage::getSingleton('checkout/session')->getQuoteId();
-            $quote = Mage::getModel("sales/quote")->load($quoteId);
 
             $limit = number_format($data['maximum_payment'], 2);
-            $total = $quote->getBaseGrandTotal();
+            $total = $quote->getGrandTotal();
 
             if (bccomp($limit, 0, 2) == 1 && bccomp($limit, $total, 2) == -1) {
+                $this->_canUseCheckout = false;
+                return;
+            }
+
+            // Make sure there is something in the quote to pay for :)
+            if($total <= 0) {
                 $this->_canUseCheckout = false;
                 return;
             }
@@ -78,7 +94,7 @@ class Siru_Mobile_Model_Payment extends Mage_Payment_Model_Method_Abstract
 
     public function canUseForCountry($country)
     {
-        return ($country === 'FI');
+        return in_array($country, self::$availableCountries);
     }
 
     /**

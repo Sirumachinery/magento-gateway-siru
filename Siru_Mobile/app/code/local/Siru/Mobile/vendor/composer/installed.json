@@ -106,17 +106,17 @@
     },
     {
         "name": "guzzlehttp/psr7",
-        "version": "1.4.1",
-        "version_normalized": "1.4.1.0",
+        "version": "1.4.2",
+        "version_normalized": "1.4.2.0",
         "source": {
             "type": "git",
             "url": "https://github.com/guzzle/psr7.git",
-            "reference": "0d6c7ca039329247e4f0f8f8f6506810e8248855"
+            "reference": "f5b8a8512e2b58b0071a7280e39f14f72e05d87c"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/guzzle/psr7/zipball/0d6c7ca039329247e4f0f8f8f6506810e8248855",
-            "reference": "0d6c7ca039329247e4f0f8f8f6506810e8248855",
+            "url": "https://api.github.com/repos/guzzle/psr7/zipball/f5b8a8512e2b58b0071a7280e39f14f72e05d87c",
+            "reference": "f5b8a8512e2b58b0071a7280e39f14f72e05d87c",
             "shasum": ""
         },
         "require": {
@@ -129,7 +129,7 @@
         "require-dev": {
             "phpunit/phpunit": "~4.0"
         },
-        "time": "2017-02-27 10:51:17",
+        "time": "2017-03-20 17:10:46",
         "type": "library",
         "extra": {
             "branch-alias": {
@@ -237,26 +237,26 @@
     },
     {
         "name": "sirumobile/siru-php-sdk",
-        "version": "dev-master",
-        "version_normalized": "9999999-dev",
+        "version": "v0.1",
+        "version_normalized": "0.1.0.0",
         "source": {
             "type": "git",
             "url": "https://github.com/Sirumachinery/siru-php-sdk.git",
-            "reference": "e1ce9030443a745334253d16c68d67f1ebb1f70e"
+            "reference": "eaabb8eb9e3b238cc6fa0c28fdeff234672d83ad"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/Sirumachinery/siru-php-sdk/zipball/e1ce9030443a745334253d16c68d67f1ebb1f70e",
-            "reference": "e1ce9030443a745334253d16c68d67f1ebb1f70e",
+            "url": "https://api.github.com/repos/Sirumachinery/siru-php-sdk/zipball/eaabb8eb9e3b238cc6fa0c28fdeff234672d83ad",
+            "reference": "eaabb8eb9e3b238cc6fa0c28fdeff234672d83ad",
             "shasum": ""
         },
         "require": {
             "guzzlehttp/guzzle": "~6.1",
             "php": ">=5.6"
         },
-        "time": "2017-02-16 13:13:26",
+        "time": "2017-04-11 12:31:48",
         "type": "library",
-        "installation-source": "source",
+        "installation-source": "dist",
         "autoload": {
             "psr-4": {
                 "Siru\\": "src/Siru/"
