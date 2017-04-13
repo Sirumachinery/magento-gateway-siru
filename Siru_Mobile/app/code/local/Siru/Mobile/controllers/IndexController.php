@@ -6,85 +6,81 @@
 class Siru_Mobile_IndexController extends Mage_Core_Controller_Front_Action
 {
 
+    private $mode = 'ReturnUrl';
+
     /**
      * User is redirected here after successful payment.
      * @todo check if order status allows status to be changed
-     * @todo compare purchase reference to order so that we complete correct order
-     * @todo  translate error messages
+     * @todo wrap in transaction
      */
     public function responseAction()
     {
-        $event = $this->getAuthenticatedSiruEvent($_GET);
+        $query = Mage::app()->getRequest()->getQuery();
+
+        $event = $this->getAuthenticatedSiruEvent($query);
         if($event == false) {
             $this->_redirect("checkout/onepage");
         }
 
         // Use order id from purchase reference instead of session.
         // Otherwise user could create new order with more products.
-        $incrementId = $_GET['siru_purchaseReference'];
-        $order = Mage::getModel('sales/order')->load($incrementId);
-
-        if($order->getId() == false) {
-            Mage::helper('siru_mobile/logger')->error('responseAction: Order increment_id ' . $incrementId . ' from purchaseReference was not found');
+        $order = $this->getOrderFromParams($query);
+        if($order == false) {
             return $this->_redirect("/");
         }
 
-        $this->logEvent($event, $order, 'Redirect');
+        $this->logEvent($event, $order);
 
         switch($event) {
                 case 'success':
-                    $this->completePayment($order);
+                    $this->completePayment($order, $query['siru_uuid']);
                     return $this->_redirect('checkout/onepage/success');
 
                 case 'cancel':
                     $this->cancelOrder($order, 'User canceled payment.');
-                    Mage::getSingleton('core/session')->addNotice('Payment was canceled.');
-                    break;
+                    Mage::getSingleton('core/session')->addNotice($this->__('Payment was canceled.'));
+                    return $this->_redirect("checkout/cart");
 
                 case 'failure':
                     $this->cancelOrder($order, 'Payment failed.');
-                    Mage::getSingleton('core/session')->addError('Payment was unsuccessful.');
-                    break;
+#                    Mage::getSingleton('core/session')->addError($this->__('Payment was unsuccessful.'));
+                    return $this->_redirect("checkout/onepage/failure");
         }
 
-        return $this->_redirect("checkout/cart");
     }
 
     /**
      * Handles notifications from Siru mobile.
      * @todo  if merchant id is invalid or order not found, should we return 200 OK and just ignore message?
+     * @todo wrap in transaction
      */
     public function callbackAction()
     {
-        $entityBody = file_get_contents('php://input');
+        $this->mode = 'Notification';
+
+        $entityBody = Mage::app()->getRequest()->getRawBody();
         $entityBodyAsJson = json_decode($entityBody, true);
 
         if(is_array($entityBodyAsJson) && isset($entityBodyAsJson['siru_event'])) {
 
-            $logger = Mage::helper('siru_mobile/logger');
-
             $event = $this->getAuthenticatedSiruEvent($entityBodyAsJson);
 
             if($event == false) {
-                $logger->warning('Call to Siru payment callback handler with invalid event or signature.');
                 $this->getResponse()->setHeader('HTTP/1.0','403',true);
                 return;
             }
 
-            $incrementId = $entityBodyAsJson['siru_purchaseReference'];
-            $order = Mage::getModel('sales/order')->load($incrementId);
-
-            if($order->getId() == false) {
-                $logger->error('callbackAction: Order increment_id ' . $incrementId . ' from purchaseReference was not found');
+            $order = $this->getOrderFromParams($entityBodyAsJson);
+            if($order == false) {
                 $this->getResponse()->setHeader('HTTP/1.0','404',true);
                 return;
             }
 
-            $this->logEvent($event, $order, 'Notification');
+            $this->logEvent($event, $order);
 
             switch($event) {
                 case 'success':
-                    $this->completePayment($order);
+                    $this->completePayment($order, $entityBodyAsJson['siru_uuid']);
                     break;
 
                 case 'cancel':
@@ -117,32 +113,65 @@ class Siru_Mobile_IndexController extends Mage_Core_Controller_Front_Action
                 return $data['siru_event'];
             }
 
+            Mage::helper('siru_mobile/logger')->warning(sprintf('%s: Invalid or missing signature for event %s.', $this->mode, $data['siru_event']));
+
         }
 
         return false;
     }
 
-    private function logEvent($event, Mage_Sales_Model_Order $order, $txt)
+    /**
+     * Takes parameters received from Siru and returns correct order.
+     * 
+     * @param  array  $data
+     * @return Mage_Sales_Model_Order
+     */
+    private function getOrderFromParams(array $data)
+    {
+        $incrementId = $data['siru_purchaseReference'];
+        $order = Mage::getModel('sales/order')->loadByIncrementId($incrementId);
+
+        // Make sure order exists
+        if($order->getId() == false) {
+            $logger->error(sprintf(
+                '%s: Order increment_id %s was not found (%s event).',
+                $this->mode,
+                $incrementId,
+                $data['siru_event']
+            ));
+            return false;
+        }
+
+        // Make sure order payment method was Siru
+        $paymentMethod = $order->getPayment()->getMethodInstance();
+        if (!($paymentMethod instanceof Siru_Mobile_Model_Payment)) {
+            $logger->error(sprintf(
+                '%s: Order increment_id %s was found (%s event) but with invalid payment method "%s".',
+                $this->mode,
+                $incrementId,
+                $data['siru_event'],
+                get_class($paymentMethod)
+            ));
+            return false;
+        }
+
+        return $order;
+    }
+
+    /**
+     * Just creates log message about siru_event.
+     * @param  string                 $event siru_event value
+     * @param  Mage_Sales_Model_Order $order
+     */
+    private function logEvent($event, Mage_Sales_Model_Order $order)
     {
         Mage::helper('siru_mobile/logger')->info(sprintf(
             '%s from Siru with event %s for order increment_id %s. Current order status is %s.',
-            $txt,
+            $this->mode,
             $event,
             $order->getIncrementId(),
             $order->getStatus()
         ));
-    }
-
-    private function completePayment(Mage_Sales_Model_Order $order)
-    {
-        $order->addStatusToHistory(Mage_Sales_Model_Order::STATE_COMPLETE);
-
-        $order->setData('state', Mage_Sales_Model_Order::STATE_COMPLETE);
-        $order->save();
-
-        // Empty Cart
-        Mage::getSingleton('checkout/cart')->truncate();
-        Mage::getSingleton('checkout/cart')->save();
     }
 
     /**
@@ -163,6 +192,157 @@ class Siru_Mobile_IndexController extends Mage_Core_Controller_Front_Action
         $quoteId = $order->getQuoteId();
         $quote = Mage::getModel('sales/quote')->load($quoteId);
         $quote->setIsActive(true)->save();
+    }
+
+    /**
+     * Completes the payment and order.
+     * 
+     * @param  Mage_Sales_Model_Order $order
+     * @param  string                 $uuid  Siru UUID
+     */
+    private function completePayment(Mage_Sales_Model_Order $order, $uuid)
+    {
+
+        // As a precaution, update canceled order to processing
+        if ($order->getState() === Mage_Sales_Model_Order::STATE_CANCELED) {
+            $order->setState(Mage_Sales_Model_Order::STATE_PROCESSING);
+            $order->setStatus(Mage_Sales_Model_Order::STATE_PROCESSING);
+            $order->save();
+
+            foreach ($order->getAllItems() as $item) {
+                $item->setQtyCanceled(0);
+                $item->save();
+            }
+        }
+
+        // Create transaction from payment
+        $this->createTransactionForOrder($order, $uuid);
+
+        // Update order status if needed
+        $new_status = $order->getPayment()->getMethodInstance()->getConfigData('order_status_capture');
+        $status = $this->getStatusModel($new_status);
+
+        if($order->getStatus() != $status->getStatus()) {
+            $order->setData('state', $status->getState());
+            $order->setStatus($status->getStatus());
+            $order->addStatusHistoryComment(Mage::helper('siru_mobile')->__('Order has been paid'), $new_status);
+        }
+
+        // Create invoice
+        if($order->canInvoice() == true) {
+            $invoice = $this->createInvoiceForOrder($order);
+        }
+
+        // We're done! \o/
+        $order->save();
+
+        $order->sendNewOrderEmail();
+
+        // Empty Cart
+        Mage::getSingleton('checkout/cart')->truncate();
+        Mage::getSingleton('checkout/cart')->save();
+    }
+
+    /**
+     * Creates transaction for payment.
+     * 
+     * @param  Mage_Sales_Model_Order $order
+     * @param  string                 $uuid  UUID from Siru API
+     * @return Mage_Sales_Model_Order_Payment_Transaction|null
+     * @todo   Could we create transaction in PaymentController and store UUID there already?
+     */
+    private function createTransactionForOrder(Mage_Sales_Model_Order $order, $uuid)
+    {
+        // Lookup Transaction
+        $collection = Mage::getModel('sales/order_payment_transaction')
+            ->getCollection()
+            ->addAttributeToFilter('txn_id', $uuid);
+
+        if(count($collection) > 0) {
+            Mage::helper('siru_mobile/logger')->info(sprintf('Transaction %s of order %s already processed.', $uuid, $order->getIncrementId()));
+            return $collection->getFirstItem();
+        }
+
+        // Set Payment Transaction Id
+        // @todo Does this do anything really?? There is last_trans_id field in payments table
+        $payment = $order->getPayment();
+        $payment->setTransactionId($uuid);
+
+        $message = Mage::helper('siru_mobile')->__('Transaction Status: %s.', $transaction_status);
+        $transaction = $payment->addTransaction(Mage_Sales_Model_Order_Payment_Transaction::TYPE_CAPTURE, null, true, $message);
+        $transaction->setAdditionalInformation(Mage_Sales_Model_Order_Payment_Transaction::RAW_DETAILS, array('uuid' => $uuid));
+        $transaction->isFailsafe(true)->close(false);
+        $transaction->setMessage('Transaction completed');
+        $transaction->save();
+
+        try {
+            $order->save();
+            Mage::helper('siru_mobile/logger')->info(sprintf('Created transaction %s for order %s', $transaction->getId(), $order->getIncrementId()));
+        } catch (Exception $e) {
+            Mage::helper('siru_mobile/logger')->error(sprintf('Failed to create transaction for order %s. %s', $order->getIncrementId(), $e->getMessage()));
+            Mage::logException($e);
+        }
+
+        return $transaction;
+    }
+
+    /**
+     * Create Invoice
+     * @param  Mage_Sales_Model_Order         $order
+     * @return Mage_Sales_Model_Order_Invoice
+     */
+    public function createInvoiceForOrder(Mage_Sales_Model_Order $order)
+    {
+
+        $invoice = Mage::getModel('sales/service_order', $order)->prepareInvoice();
+        $invoice->addComment(Mage::helper('siru_mobile')->__('Auto-generated from Siru Mobile module'), false, false);
+        $invoice->setRequestedCaptureCase(Mage_Sales_Model_Order_Invoice::CAPTURE_ONLINE);
+        $invoice->register();
+
+        $invoice->getOrder()->setIsInProcess(true);
+
+        try {
+            $transactionSave = Mage::getModel('core/resource_transaction')
+                ->addObject($invoice)
+                ->addObject($invoice->getOrder());
+            $transactionSave->save();
+        } catch (Mage_Core_Exception $e) {
+            // Save Error Message
+            $order->addStatusToHistory(
+                $order->getStatus(),
+                'Failed to create invoice: ' . $e->getMessage(),
+                true
+            );
+            Mage::helper('siru_mobile/logger')->error(sprintf('Failed to create invoice for order %s. %s', $order->getIncrementId(), $e->getMessage()));
+            throw $e;
+        }
+
+        $invoice->setIsPaid(true);
+
+        // Assign Last Transaction Id with Invoice
+        $transactionId = $invoice->getOrder()->getPayment()->getLastTransId();
+        if ($transactionId) {
+            $invoice->setTransactionId($transactionId);
+            $invoice->save();
+        }
+
+        return $invoice;
+    }
+
+    /**
+     * Get status object based on status.
+     * 
+     * @param  string                         $status
+     * @return Mage_Sales_Model_Order_Status
+     */
+    private function getStatusModel($status) 
+    {
+        $status = Mage::getModel('sales/order_status')
+            ->getCollection()
+            ->joinStates()
+            ->addFieldToFilter('main_table.status', $status)
+            ->getFirstItem();
+        return $status;
     }
 
 }

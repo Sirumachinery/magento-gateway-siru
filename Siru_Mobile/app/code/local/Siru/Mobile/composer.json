@@ -1,0 +1,5 @@
+{
+    "require": {
+        "sirumobile/siru-php-sdk": "^0.1.0"
+    }
+}

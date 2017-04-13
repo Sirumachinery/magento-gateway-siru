@@ -15,6 +15,15 @@
                 </args>
             </mobile>
         </routers>
+        <translate>
+            <modules>
+                <Your_Extension>
+                    <files>
+                        <default>Siru_Mobile.csv</default>
+                    </files>
+                </Your_Extension>
+            </modules>
+        </translate>
     </frontend>
     <global>
         <models>
@@ -49,26 +58,10 @@
                 <title>Siru Mobile</title>
                 <allowspecific>0</allowspecific>
                 <payment_action>sale</payment_action>
-            </siru_mobile>
-        </payment>
-
-        <payment>
-            <siru_mobile>
                 <tax_class>3</tax_class>
-            </siru_mobile>
-        </payment>
-        <payment>
-            <siru_mobile>
+                <order_status_capture>complete</order_status_capture>
                 <service_group>2</service_group>
-            </siru_mobile>
-        </payment>
-        <payment>
-            <siru_mobile>
                 <instant_payment>1</instant_payment>
-            </siru_mobile>
-        </payment>
-        <payment>
-            <siru_mobile>
                 <purchase_country>FI</purchase_country>
             </siru_mobile>
         </payment>

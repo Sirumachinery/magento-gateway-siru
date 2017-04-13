@@ -27,6 +27,11 @@ class Siru_Mobile_Model_Payment extends Mage_Payment_Model_Method_Abstract
      */
     protected $_canUseCheckout = true;
 
+    protected $_canAuthorize = true;
+    protected $_canCapture = true;
+
+    protected $_canUseForMultishipping  = false;
+
     /**
      * Siru_Mobile_Model_Payment constructor.
      */
@@ -63,15 +68,7 @@ class Siru_Mobile_Model_Payment extends Mage_Payment_Model_Method_Abstract
 
             $quote = Mage::getModel('checkout/cart')->getQuote();
 
-            // Make sure quote is using a supported currency
-            if(in_array($quote->getQuoteCurrencyCode(), self::$availableCurrencies) == false) {
-                Mage::helper('siru_mobile/logger')->info('Siru payment method not available for currency "' . $quote->getQuoteCurrencyCode() . '"');
-                $this->_canUseCheckout = false;
-                return;
-            }
-
             // Make sure cart total does not exceed set maximum payment amount.
-
             $limit = number_format($data['maximum_payment'], 2);
             $total = $quote->getGrandTotal();
 
@@ -90,6 +87,11 @@ class Siru_Mobile_Model_Payment extends Mage_Payment_Model_Method_Abstract
             $this->verifyMobileInternetConnection();
 
         }
+    }
+
+    public function canUseForCurrency($currencyCode)
+    {
+        return in_array($currencyCode, self::$availableCurrencies);
     }
 
     public function canUseForCountry($country)

@@ -10,7 +10,8 @@ class Siru_Mobile_PaymentController extends Mage_Core_Controller_Front_Action
      * User is redirected here after he clicks "Place order" in checkout page.
      * @see  Siru_Mobile_Model_Payment::getOrderPlaceRedirectUrl()
      * @todo store Siru UUID to order
-     * @todo Show more graceful error message if API call fails, order is not found or order value due is zero
+     * @todo Check that Siru was selected payment method somehow
+     * @todo Check that order total is not zero?
      */
     public function createAction()
     {
@@ -23,7 +24,8 @@ class Siru_Mobile_PaymentController extends Mage_Core_Controller_Front_Action
         $order->loadByIncrementId($order_id);
         if (!$order->getId()) {
             $logger->error(sprintf('Order %s was not found for processing.', $order_id));
-            Mage::throwException('No order for processing found');
+            Mage::getSingleton('core/session')->addError($this->__('Order was not found for processing. Please try again.'));
+            return $this->_redirect("checkout/cart");
         }
         $logger->debug('Create payment for order id ' . $order_id);
 
@@ -38,10 +40,12 @@ class Siru_Mobile_PaymentController extends Mage_Core_Controller_Front_Action
         $serviceGroup = $data['service_group'];
         $instantPay = $data['instant_payment'];
 
-        $basePrice = Mage::helper('siru_mobile/data')->calculateBasePrice(
-            $order->getGrandTotal(),
-            $taxClass
-        );
+        $basePrice = Mage::helper('siru_mobile/data')->getGrandTotalExclTaxForOrder($order);
+        if($basePrice == 0) {
+            $logger->error(sprintf('Order %s calculated base price was zero.', $order->getIncrementId()));
+            Mage::getSingleton('core/session')->addError($this->__('Order did not have any payments due.'));
+            return $this->_redirect("checkout/cart");
+        }
 
         try {
 
@@ -61,14 +65,14 @@ class Siru_Mobile_PaymentController extends Mage_Core_Controller_Front_Action
                 ->set('taxClass', $taxClass)
                 ->set('serviceGroup', $serviceGroup)
                 ->set('instantPay', $instantPay)
-                ->set('purchaseReference', $order->getId())
+                ->set('purchaseReference', $order->getIncrementId())
                 ->set('customerReference', $order->getCustomerId())
                 ->set('customerFirstName', $customer->getFirstname())
                 ->set('customerLastName', $customer->getLastname())
                 ->set('customerEmail', $customer->getEmail())
                 ->createPayment();
 
-            $logger->info(sprintf('Created new pending payment for order %s. UUID %s.', $order->getId(), $transaction['uuid']));
+            $logger->info(sprintf('Created new pending payment for order %s. UUID %s.', $order->getIncrementId(), $transaction['uuid']));
 
             $order->setState(
                 Mage_Sales_Model_Order::STATE_PENDING_PAYMENT,
@@ -80,14 +84,14 @@ class Siru_Mobile_PaymentController extends Mage_Core_Controller_Front_Action
             return $this->_redirectUrl($transaction['redirect']);
 
         } catch (\Siru\Exception\InvalidResponseException $e) {
-            $logger->error('Unable to contact payment API. Check credentials.');
+            $logger->error(sprintf('Failed to create transaction for order %s. Unable to contact payment API. Check credentials.', $order->getIncrementId()));
 
-            $this->handleException($e, $order);
+            return $this->handleException($e, $order);
 
         } catch (\Siru\Exception\ApiException $e) {
-            $logger->error('Failed to create transaction. ' . implode(" ", $e->getErrorStack()));
+            $logger->error(sprintf('Failed to create transaction for order %s. %s', $order->getIncrementId(), implode(" ", $e->getErrorStack())));
 
-            $this->handleException($e, $order);
+            return $this->handleException($e, $order);
         }
 
     }
@@ -101,7 +105,7 @@ class Siru_Mobile_PaymentController extends Mage_Core_Controller_Front_Action
     {
         Mage::logException($e);
 
-        //Mage::getSingleton('core/session')->addError("There was a problem with the payment gateway. Please try again");
+        Mage::getSingleton('core/session')->addError($this->__('There was a problem with the payment gateway. Please try again.'));
 
         $order->cancel();
         $order->addStatusHistoryComment('Failed to create payment.', Mage_Sales_Model_Order::STATE_CANCELED);
@@ -111,7 +115,7 @@ class Siru_Mobile_PaymentController extends Mage_Core_Controller_Front_Action
         $quote = Mage::getModel('sales/quote')->load($quoteId);
         $quote->setIsActive(true)->save();
 
-        throw $e;
+        return $this->_redirect("checkout/cart");
     }
 
 }
