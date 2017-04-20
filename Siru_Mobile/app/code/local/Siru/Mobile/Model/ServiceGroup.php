@@ -11,10 +11,10 @@ class Siru_Mobile_Model_ServiceGroup
     public function toOptionArray()
     {
         return array(
-            array('value'=>0, 'label'=>0),
-            array('value'=>1, 'label'=>1),
-            array('value'=>2, 'label'=>2),
-            array('value'=>3, 'label'=>3),
+            array('value'=>1, 'label' => Mage::helper('siru_mobile')->__('Non-profit services')),
+            array('value'=>2, 'label' => Mage::helper('siru_mobile')->__('Online services')),
+            array('value'=>3, 'label' => Mage::helper('siru_mobile')->__('Entertainment services')),
+            array('value'=>4, 'label' => Mage::helper('siru_mobile')->__('Adult entertainment services')),
         );
     }
 

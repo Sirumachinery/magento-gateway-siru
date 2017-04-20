@@ -9,9 +9,8 @@ class Siru_Mobile_PaymentController extends Mage_Core_Controller_Front_Action
     /**
      * User is redirected here after he clicks "Place order" in checkout page.
      * @see  Siru_Mobile_Model_Payment::getOrderPlaceRedirectUrl()
-     * @todo store Siru UUID to order
+     * @todo store Siru UUID to order. ATM it is done in IndexController when payment is complete
      * @todo Check that Siru was selected payment method somehow
-     * @todo Check that order total is not zero?
      */
     public function createAction()
     {
@@ -38,7 +37,7 @@ class Siru_Mobile_PaymentController extends Mage_Core_Controller_Front_Action
         $taxClass = (int)$data['tax_class'];
         $purchaseCountry = $data['purchase_country'];
         $serviceGroup = $data['service_group'];
-        $instantPay = $data['instant_payment'];
+        $instantPay = (int)$data['instant_payment'];
 
         $basePrice = Mage::helper('siru_mobile/data')->getGrandTotalExclTaxForOrder($order);
         if($basePrice == 0) {
@@ -53,7 +52,6 @@ class Siru_Mobile_PaymentController extends Mage_Core_Controller_Front_Action
 
             $transaction = $api->getPaymentApi()
                 ->set('variant', 'variant2')
-#                ->set('merchantId', '22222')
                 ->set('purchaseCountry', $purchaseCountry)
                 ->set('basePrice', $basePrice)
                 ->set('redirectAfterSuccess', $redirectUrl)

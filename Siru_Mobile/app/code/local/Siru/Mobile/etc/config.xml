@@ -17,14 +17,25 @@
         </routers>
         <translate>
             <modules>
-                <Your_Extension>
+                <siru_mobile>
                     <files>
                         <default>Siru_Mobile.csv</default>
                     </files>
-                </Your_Extension>
+                </siru_mobile>
             </modules>
         </translate>
     </frontend>
+    <adminhtml>
+        <translate>
+            <modules>
+                <siru_mobile>
+                    <files>
+                        <default>Siru_Mobile.csv</default>
+                    </files>
+                </siru_mobile>
+            </modules>
+        </translate>
+    </adminhtml>
     <global>
         <models>
             <siru_mobile>

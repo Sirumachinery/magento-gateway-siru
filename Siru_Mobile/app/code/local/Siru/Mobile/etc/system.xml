@@ -20,7 +20,7 @@
                             <show_in_store>0</show_in_store>
                         </active>
                         <title translate="label">
-                            <label>Title*</label>
+                            <label>Title</label>
                             <frontend_type>text</frontend_type>
                             <show_in_default>1</show_in_default>
                             <show_in_website>1</show_in_website>
@@ -29,16 +29,16 @@
                             <validate>required-entry</validate>
                         </title>
                         <live_environment translate="label">
-                            <label>Use live environment	</label>
-                            <frontend_type>checkbox</frontend_type>
-                            <frontend_model>siru_mobile/LiveEnvironment</frontend_model>
+                            <label>Use live environment</label>
+                            <frontend_type>select</frontend_type>
+                            <source_model>adminhtml/system_config_source_yesno</source_model>
                             <show_in_default>1</show_in_default>
                             <show_in_website>1</show_in_website>
                             <show_in_store>0</show_in_store>
                             <sort_order>2</sort_order>
                         </live_environment>
                         <merchant_id translate="label">
-                            <label>MerchantId*</label>
+                            <label>Merchant Id</label>
                             <frontend_type>text</frontend_type>
                             <show_in_default>1</show_in_default>
                             <show_in_website>1</show_in_website>
@@ -47,7 +47,7 @@
                             <validate>required-entry validate-digits</validate>
                         </merchant_id>
                         <merchant_secret translate="label">
-                            <label>Merchant secret*</label>
+                            <label>Merchant secret</label>
                             <frontend_type>text</frontend_type>
                             <show_in_default>1</show_in_default>
                             <show_in_website>1</show_in_website>
@@ -56,7 +56,7 @@
                             <validate>required-entry</validate>
                         </merchant_secret>
                         <order_status_capture translate="label">
-                            <label>Order status after payment is completed</label>
+                            <label>Order status after payment</label>
                             <frontend_type>select</frontend_type>
                             <source_model>adminhtml/system_config_source_order_status</source_model>
                             <sort_order>5</sort_order>
@@ -65,7 +65,7 @@
                             <show_in_store>1</show_in_store>
                         </order_status_capture>
                         <purchase_country translate="label">
-                            <label>Purchase country*</label>
+                            <label>Purchase country</label>
                             <frontend_type>select</frontend_type>
                             <source_model>siru_mobile/PurchaseCountry</source_model>
                             <show_in_default>1</show_in_default>
@@ -102,14 +102,14 @@
                         <instant_payment translate="label">
                             <label>Instant payment</label>
                             <frontend_type>select</frontend_type>
-                            <source_model>siru_mobile/InstantPayment</source_model>
+                            <source_model>adminhtml/system_config_source_yesno</source_model>
+                            <sort_order>9</sort_order>
                             <show_in_default>1</show_in_default>
                             <show_in_website>1</show_in_website>
                             <show_in_store>0</show_in_store>
-                            <sort_order>9</sort_order>
                         </instant_payment>
                         <maximum_payment translate="label">
-                            <label>Maximum payment allowed*</label>
+                            <label>Maximum payment allowed</label>
                             <frontend_type>text</frontend_type>
                             <show_in_default>1</show_in_default>
                             <show_in_website>1</show_in_website>

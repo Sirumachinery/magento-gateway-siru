@@ -10,7 +10,6 @@ class Siru_Mobile_IndexController extends Mage_Core_Controller_Front_Action
 
     /**
      * User is redirected here after successful payment.
-     * @todo check if order status allows status to be changed
      * @todo wrap in transaction
      */
     public function responseAction()
@@ -51,7 +50,6 @@ class Siru_Mobile_IndexController extends Mage_Core_Controller_Front_Action
 
     /**
      * Handles notifications from Siru mobile.
-     * @todo  if merchant id is invalid or order not found, should we return 200 OK and just ignore message?
      * @todo wrap in transaction
      */
     public function callbackAction()
@@ -66,13 +64,13 @@ class Siru_Mobile_IndexController extends Mage_Core_Controller_Front_Action
             $event = $this->getAuthenticatedSiruEvent($entityBodyAsJson);
 
             if($event == false) {
-                $this->getResponse()->setHeader('HTTP/1.0','403',true);
+                $this->getResponse()->setHeader('HTTP/1.0','403', true);
                 return;
             }
 
             $order = $this->getOrderFromParams($entityBodyAsJson);
             if($order == false) {
-                $this->getResponse()->setHeader('HTTP/1.0','404',true);
+                echo 'Order not found';
                 return;
             }
 
@@ -94,7 +92,7 @@ class Siru_Mobile_IndexController extends Mage_Core_Controller_Front_Action
 
             echo 'OK';
         } else {
-            $this->getResponse()->setHeader('HTTP/1.0','500',true);
+            $this->getResponse()->setHeader('HTTP/1.0','500', true);
         }
     }
 
@@ -178,10 +176,23 @@ class Siru_Mobile_IndexController extends Mage_Core_Controller_Front_Action
      * Cancels order and stores optional status message about event.
      * @param  Mage_Sales_Model_Order $order
      * @param  string|null            $message
-     * @todo   re-activate quote
      */
     private function cancelOrder(Mage_Sales_Model_Order $order, $message = null)
     {
+        if($order->getState() === Mage_Sales_Model_Order::STATE_CANCELED) {
+            // Already canceled, ignore
+            return;
+        }
+
+        if($order->canCancel() == false) {
+            Mage::helper('siru_mobile/logger')->error(sprintf(
+                'Order increment_id %s status %s does not allow cancelation.',
+                $order->getIncrementId(),
+                $order->getStatusLabel()
+            ));
+            return;
+        }
+
         $order->cancel();
         if($message) {
             $order->addStatusHistoryComment($message, Mage_Sales_Model_Order::STATE_CANCELED);
@@ -199,6 +210,7 @@ class Siru_Mobile_IndexController extends Mage_Core_Controller_Front_Action
      * 
      * @param  Mage_Sales_Model_Order $order
      * @param  string                 $uuid  Siru UUID
+     * @todo   Ignore if order is already completed?
      */
     private function completePayment(Mage_Sales_Model_Order $order, $uuid)
     {
@@ -246,8 +258,8 @@ class Siru_Mobile_IndexController extends Mage_Core_Controller_Front_Action
     /**
      * Creates transaction for payment.
      * 
-     * @param  Mage_Sales_Model_Order $order
-     * @param  string                 $uuid  UUID from Siru API
+     * @param  Mage_Sales_Model_Order                          $order
+     * @param  string                                          $uuid  UUID from Siru API
      * @return Mage_Sales_Model_Order_Payment_Transaction|null
      * @todo   Could we create transaction in PaymentController and store UUID there already?
      */
@@ -281,6 +293,7 @@ class Siru_Mobile_IndexController extends Mage_Core_Controller_Front_Action
         } catch (Exception $e) {
             Mage::helper('siru_mobile/logger')->error(sprintf('Failed to create transaction for order %s. %s', $order->getIncrementId(), $e->getMessage()));
             Mage::logException($e);
+            return null;
         }
 
         return $transaction;

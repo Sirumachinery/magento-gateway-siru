@@ -11,7 +11,7 @@ class Siru_Mobile_Model_PurchaseCountry
     public function toOptionArray()
     {
         return array(
-            array('value'=>'FI', 'label'=>'FI')
+            array('value' => 'FI', 'label' => Mage::helper('siru_mobile')->__('Finland'))
         );
     }
 

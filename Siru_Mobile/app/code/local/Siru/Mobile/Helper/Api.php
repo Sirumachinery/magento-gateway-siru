@@ -39,7 +39,8 @@ class Siru_Mobile_Helper_Api extends Mage_Core_Helper_Abstract {
         // Use production endpoint if configured by admin
         $endPoint = $data['live_environment'];
 
-        if (!$endPoint) {
+        if ($endPoint == false) {
+            Mage::helper('siru_mobile/logger')->debug('Using Siru staging environment.');
             $api->useStagingEndpoint();
         }
 
