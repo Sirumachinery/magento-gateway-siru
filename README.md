@@ -11,9 +11,14 @@ This plugin provides mobile payments in Finland using Direct carrier billing thr
 
 ## Requirements
 
-* Magento 1 (tested using 1.8.1)
+* Magento 1
 * API credentials from Siru Mobile
 * Payment gateway is only available in Finland and supports EUR as currency
+* PHP 5.6 or newer
+
+## Supported Versions
+
+* Tested using Magento Community Edition 1.8.1
 
 ## Installation
 
