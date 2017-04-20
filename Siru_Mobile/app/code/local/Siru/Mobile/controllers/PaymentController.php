@@ -9,8 +9,6 @@ class Siru_Mobile_PaymentController extends Mage_Core_Controller_Front_Action
     /**
      * User is redirected here after he clicks "Place order" in checkout page.
      * @see  Siru_Mobile_Model_Payment::getOrderPlaceRedirectUrl()
-     * @todo store Siru UUID to order. ATM it is done in IndexController when payment is complete
-     * @todo Check that Siru was selected payment method somehow
      */
     public function createAction()
     {
@@ -19,6 +17,7 @@ class Siru_Mobile_PaymentController extends Mage_Core_Controller_Front_Action
 
         $order_id = Mage::getSingleton('checkout/session')->getLastRealOrderId();
 
+        // Check that order exists
         $order = Mage::getModel('sales/order');
         $order->loadByIncrementId($order_id);
         if (!$order->getId()) {
@@ -26,6 +25,19 @@ class Siru_Mobile_PaymentController extends Mage_Core_Controller_Front_Action
             Mage::getSingleton('core/session')->addError($this->__('Order was not found for processing. Please try again.'));
             return $this->_redirect("checkout/cart");
         }
+
+        // Check that Siru Mobile was the selected payment method
+        if ($order->getPayment()->getMethodInstance()->getCode() !== 'siru_mobile') {
+            $logger->error(sprintf(
+                'Attempt to create Siru Mobile payment when order %s payment method is %s.',
+                $order->getIncrementId(),
+                $order->getPayment()->getMethodInstance()->getCode()
+            ));
+
+            Mage::getSingleton('core/session')->addError($this->__('Order payment method has changed. Please try again.'));
+            return $this->_redirect("checkout/cart");
+        }
+
         $logger->debug('Create payment for order id ' . $order_id);
 
         $customer = $order->getBillingAddress();

@@ -142,13 +142,13 @@ class Siru_Mobile_IndexController extends Mage_Core_Controller_Front_Action
 
         // Make sure order payment method was Siru
         $paymentMethod = $order->getPayment()->getMethodInstance();
-        if (!($paymentMethod instanceof Siru_Mobile_Model_Payment)) {
+        if ($paymentMethod->getCode() !== 'siru_mobile') {
             $logger->error(sprintf(
                 '%s: Order increment_id %s was found (%s event) but with invalid payment method "%s".',
                 $this->mode,
                 $incrementId,
                 $data['siru_event'],
-                get_class($paymentMethod)
+                $paymentMethod->getCode()
             ));
             return false;
         }
