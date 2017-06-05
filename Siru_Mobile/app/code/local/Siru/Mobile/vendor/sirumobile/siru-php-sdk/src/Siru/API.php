@@ -6,7 +6,7 @@ namespace Siru;
  */
 class API {
 
-    const ENDPOINT_STAGING = 'https://payment.siru.tunk.io';
+    const ENDPOINT_STAGING = 'https://staging.sirumobile.com';
     const ENDPOINT_PRODUCTION = 'https://payment.sirumobile.com';
     
     /**
