@@ -15,6 +15,7 @@
 "Use live environment","Käytä tuotantoympäristöä"
 "Merchant Id","Kauppiastunnus"
 "Merchant secret","Kauppiasavain"
+"Order status during payment","Tilauksen tila maksettaessa"
 "Order status after payment","Tilauksen tila maksamisen jälkeen"
 "Purchase country","Maa"
 "Finland","Suomi"
