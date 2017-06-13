@@ -216,6 +216,7 @@ class Siru_Mobile_IndexController extends Mage_Core_Controller_Front_Action
     {
 
         // As a precaution, update canceled order to processing
+        // @todo should we instead use order_status setting for state?
         if ($order->getState() === Mage_Sales_Model_Order::STATE_CANCELED) {
             $order->setState(Mage_Sales_Model_Order::STATE_PROCESSING);
             $order->setStatus(Mage_Sales_Model_Order::STATE_PROCESSING);
