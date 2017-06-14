@@ -131,7 +131,7 @@ class Siru_Mobile_IndexController extends Mage_Core_Controller_Front_Action
 
         // Make sure order exists
         if($order->getId() == false) {
-            $logger->error(sprintf(
+            Mage::helper('siru_mobile/logger')->error(sprintf(
                 '%s: Order increment_id %s was not found (%s event).',
                 $this->mode,
                 $incrementId,
@@ -143,7 +143,7 @@ class Siru_Mobile_IndexController extends Mage_Core_Controller_Front_Action
         // Make sure order payment method was Siru
         $paymentMethod = $order->getPayment()->getMethodInstance();
         if ($paymentMethod->getCode() !== 'siru_mobile') {
-            $logger->error(sprintf(
+            Mage::helper('siru_mobile/logger')->error(sprintf(
                 '%s: Order increment_id %s was found (%s event) but with invalid payment method "%s".',
                 $this->mode,
                 $incrementId,
@@ -281,7 +281,7 @@ class Siru_Mobile_IndexController extends Mage_Core_Controller_Front_Action
         $payment = $order->getPayment();
         $payment->setTransactionId($uuid);
 
-        $message = Mage::helper('siru_mobile')->__('Transaction Status: %s.', $transaction_status);
+        $message = Mage::helper('siru_mobile')->__('Transaction Status: %s.', 'completed');
         $transaction = $payment->addTransaction(Mage_Sales_Model_Order_Payment_Transaction::TYPE_CAPTURE, null, true, $message);
         $transaction->setAdditionalInformation(Mage_Sales_Model_Order_Payment_Transaction::RAW_DETAILS, array('uuid' => $uuid));
         $transaction->isFailsafe(true)->close(false);
